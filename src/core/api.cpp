@@ -112,6 +112,7 @@
 #include "media/homogeneous.h"
 #include <map>
 #include <stdio.h>
+#include <integrators/rvpl.h>
 
 // API Global Variables
 Options PbrtOptions;
@@ -1417,13 +1418,15 @@ Integrator *RenderOptions::MakeIntegrator() const {
         integrator = CreatePathIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "volpath")
         integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera);
-    else if (IntegratorName == "bdpt") {
+    else if (IntegratorName == "bdpt")
         integrator = CreateBDPTIntegrator(IntegratorParams, sampler, camera);
-    } else if (IntegratorName == "mlt") {
+    else if (IntegratorName == "mlt")
         integrator = CreateMLTIntegrator(IntegratorParams, camera);
-    } else if (IntegratorName == "sppm") {
+    else if (IntegratorName == "sppm")
         integrator = CreateSPPMIntegrator(IntegratorParams, camera);
-    } else {
+    else if (IntegratorName == "rvpl")
+        integrator = CreateRVPLIntegrator(IntegratorParams, sampler, camera);
+    else {
         Error("Integrator \"%s\" unknown.", IntegratorName.c_str());
         return nullptr;
     }
