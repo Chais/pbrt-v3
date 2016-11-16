@@ -1,0 +1,98 @@
+Film "image" "string filename" "rvpl.png"
+	"integer xresolution" [512] "integer yresolution" [512]
+LookAt 0 0 5 0 0 4 0 1 0
+Scale -1 1 1
+Camera "perspective" "float fov" [90]
+Sampler "lowdiscrepancy" "integer pixelsamples" [8]
+Integrator "rvpl" "integer nsets" [8] "float glimit" [.1]# "bool showvl" "true"
+
+WorldBegin
+
+# Lamp
+AttributeBegin
+Translate 0 4.999 -5
+Rotate 90 1 0 0
+AreaLightSource "diffuse" "rgb L" [50 50 50]
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+	"point P" [1 1 0  1 -1 0  -1 -1 0  -1 1 0]
+	"normal N" [0 0 1  0 0 1  0 0 1  0 0 1]
+AttributeEnd
+
+# Back
+AttributeBegin
+Translate 0 0 -10
+Rotate 180 1 0 0
+Scale 5.1 5.1 1
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+Material "matte" "float Kd" [.9]
+AttributeEnd
+
+# Bottom
+AttributeBegin
+Translate 0 -5 -5
+Rotate -90 1 0 0
+Scale 5.1 5.1 1
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+Material "matte" "float Kd" [.9]
+AttributeEnd
+
+# Top
+AttributeBegin
+Translate 0 5 -5
+Rotate 90 1 0 0
+Scale 5.1 5.1 1
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+Material "matte" "float Kd" [.9]
+AttributeEnd
+
+# Front
+#AttributeBegin
+#Scale 5.1 5.1 1
+#Rotate 180 1 0 0
+#Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+#	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+#	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+#Material "matte" "float Kd" [.9]
+#AttributeEnd
+
+# Left
+AttributeBegin
+Translate -5 0 -5
+Rotate 90 0 1 0
+Scale 5.1 5.1 1
+Material "matte" "rgb Kd" [.9 0 0]
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+AttributeEnd
+
+# Right
+AttributeBegin
+Translate 5 0 -5
+Rotate -90 0 1 0
+Scale 5.1 5.1 1
+Material "matte" "rgb Kd" [0 .9 0]
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+AttributeEnd
+
+AttributeBegin
+Translate -2.5 -2.5 -6.0
+Shape "sphere" "float radius" [2]
+Material "matte" "float Kd" [0.9]
+AttributeEnd
+
+AttributeBegin
+Translate 2.5 -2.5 -3.0
+Shape "sphere" "float radius" [2]
+Material "matte" "float Kd" [0.9]
+AttributeEnd
+
+WorldEnd
