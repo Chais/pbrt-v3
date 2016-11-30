@@ -7,8 +7,8 @@
 #pragma once
 #endif
 
-#ifndef PBRT_INTEGRATORS_VPL_H
-#define PBRT_INTEGRATORS_VPL_H
+#ifndef PBRT_INTEGRATORS_RVPL_H
+#define PBRT_INTEGRATORS_RVPL_H
 
 #include <lights/point.h>
 #include <core/stats.h>
@@ -17,6 +17,7 @@
 #include "integrator.h"
 #include "paramset.h"
 #include "directlighting.h"
+STAT_COUNTER("Scene/VirtualLights created", nVirtualLights);
 
 struct VirtualLight {
     VirtualLight() {}
@@ -30,13 +31,15 @@ struct VirtualLight {
 
 class RichVPLIntegrator : public SamplerIntegrator {
 public:
-    RichVPLIntegrator(const std::shared_ptr<const Camera> &camera, const std::shared_ptr<Sampler> &sampler, uint32_t nl,
-                      uint32_t ns, const float gl, const int ng, const float rrt, const int maxd,
-                      const LightStrategy strat, const bool vl) : SamplerIntegrator(camera, sampler),
-                                                                  nLightPaths(RoundUpPow2(int32_t(nl))),
-                                                                  nLightSets(RoundUpPow2(int32_t(ns))), gLimit(gl),
-                                                                  nGatherSamples(ng), rrThreshold(rrt), maxDepth(maxd),
-                                                                  strategy(strat), showVLights(vl) {
+    RichVPLIntegrator(const std::shared_ptr<const Camera> &camera, const std::shared_ptr<Sampler> &sampler,
+                      uint32_t nl = 64, uint32_t ns = 4, const float gl = 10.f, const int ng = 16,
+                      const float rrt = .0001f, const int maxd = 5,
+                      const LightStrategy strat = LightStrategy::UniformSampleAll, const bool vl = false,
+                      const bool dl = false) : SamplerIntegrator(camera, sampler),
+                                               nLightPaths(RoundUpPow2(int32_t(nl))),
+                                               nLightSets(RoundUpPow2(int32_t(ns))), gLimit(gl), nGatherSamples(ng),
+                                               rrThreshold(rrt), maxDepth(maxd), strategy(strat), showVLights(vl),
+                                               noDirectLighting(dl) {
         virtualLights.resize(ns);
         if (vl) {
             VLTransforms.resize(ns);
@@ -57,6 +60,7 @@ private:
     const int maxDepth;
     const LightStrategy strategy;
     const bool showVLights;
+    bool noDirectLighting;
     std::vector<std::vector<VirtualLight>> virtualLights;
     std::vector<std::vector<Transform>> VLTransforms;
     std::vector<std::vector<Transform>> VLITransforms;
@@ -67,4 +71,4 @@ private:
 RichVPLIntegrator *
 CreateRVPLIntegrator(const ParamSet &params, std::shared_ptr<Sampler> sampler, std::shared_ptr<const Camera> camera);
 
-#endif //PBRT_INTEGRATORS_VPL_H
+#endif //PBRT_INTEGRATORS_RVPL_H

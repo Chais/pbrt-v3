@@ -23,10 +23,11 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
             RayDifferential ray;
             Float pdfPos, pdfDir;
             Normal3f nLight;
-            Spectrum alpha = light->Sample_Le(sampler.Get2D(), sampler.Get2D(), 0, &ray, &nLight,
-                                              &pdfPos, &pdfDir);
+            // Light emitted at light source
+            Spectrum alpha = light->Sample_Le(sampler.Get2D(), sampler.Get2D(), ray.time, &ray, &nLight, &pdfPos,
+                                              &pdfDir);
             if (pdfPos == 0.f || pdfDir == 0.f || alpha.IsBlack()) continue;
-            alpha *= AbsDot(nLight, ray.d) / (pdfDir * pdfPos * lightPdf);
+            alpha *= AbsDot(nLight, ray.d) / (pdfDir * pdfPos * lightPdf); // Cosine weighting for area lights
             SurfaceInteraction isect;
             while (scene.Intersect(ray, &isect) && !alpha.IsBlack()) {
                 // Attenuate for participating medium
@@ -36,7 +37,7 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
                 Vector3f wo = isect.wo;
                 isect.ComputeScatteringFunctions(ray, arena);
                 Point2f bsdfSample = sampler.Get2D();
-                Spectrum contrib = alpha * isect.bsdf->rho(wo, 1, &bsdfSample) * InvPi;
+                Spectrum contrib = alpha * isect.bsdf->rho(wo, 1, &bsdfSample) * InvPi; // $f(p, \omega_o, \omega_i)
                 virtualLights[s].push_back(
                         VirtualLight(OffsetRayOrigin(isect.p, isect.pError, isect.n, isect.wo), isect.n, contrib));
                 if (showVLights) {
@@ -61,6 +62,8 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
             arena.Reset();
         }
     }
+    for (std::vector<VirtualLight> v : virtualLights)
+        nVirtualLights += v.size();
     if (strategy == LightStrategy::UniformSampleAll) {
         // Compute number of samples to use for each light
         for (const auto &light : scene.lights)
@@ -85,18 +88,16 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     // Show virtual lights instead if configured
     if (showVLights && depth == 0) {
         Float d = Infinity;
-        for (uint32_t s = 0; s < nLightSets; s++) {
+        for (uint32_t s = 0; s < nLightSets; s++)
             for (uint32_t i = 0; i < VLTransforms[lSet].size(); i++) {
                 Float tHit = Infinity;
                 Sphere sphere = Sphere(&VLTransforms[lSet][i], &VLITransforms[lSet][i], false, .1f, -1, 1, 360);
                 sphere.Intersect(ray, &tHit, &isect, false);
                 if (tHit < d) {
                     d = tHit;
-                    //L = Spectrum();
                     L = virtualLights[lSet][i].pathContrib / nLightPaths;
                 }
             }
-        }
         if (d < Infinity) return L;
     }
 
@@ -108,17 +109,20 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
 
     // Compute scattering functions for surface interaction
     isect.ComputeScatteringFunctions(ray, arena);
-    if (!isect.bsdf) return Li(isect.SpawnRay(ray.d), scene, sampler, arena, depth);
+    if (!isect.bsdf) return Li(isect.SpawnRay(ray.d), scene, sampler, arena, depth + 1);
 
     // Compute emitted light if ray hit an area light source
     Vector3f wo = isect.wo;
     L += isect.Le(wo);
 
-    // Compute direct lighting for _DirectLightingIntegrator_ integrator
-    if (strategy == LightStrategy::UniformSampleAll)
-        L += UniformSampleAllLights(isect, scene, arena, sampler, nLightSamples);
-    else
-        L += UniformSampleOneLight(isect, scene, arena, sampler);
+    // Calculate direct lighting if desired
+    if (!noDirectLighting) {
+        // Compute direct lighting for _DirectLightingIntegrator_ integrator
+        if (strategy == LightStrategy::UniformSampleAll)
+            L += UniformSampleAllLights(isect, scene, arena, sampler, nLightSamples);
+        else
+            L += UniformSampleOneLight(isect, scene, arena, sampler);
+    }
 
     const Point3f &p = OffsetRayOrigin(isect.p, isect.pError, isect.n, isect.wo);
     const Normal3f &n = isect.n;
@@ -202,6 +206,7 @@ CreateRVPLIntegrator(const ParamSet &params, std::shared_ptr<Sampler> sampler, s
         strategy = LightStrategy::UniformSampleAll;
     }
     bool vl = params.FindOneBool("showvl", false);
+    bool dl = params.FindOneBool("nodl", false);
     return new RichVPLIntegrator(camera, sampler, nLightPaths, nLightSets, gLimit, nGatherSamples, rrThreshold,
-                                 maxDepth, strategy, vl);
+                                 maxDepth, strategy, vl, dl);
 }
