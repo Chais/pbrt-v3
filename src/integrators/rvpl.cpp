@@ -2,6 +2,7 @@
 // Created by Philip Abernethy (1206672) on 05/11/16.
 //
 
+#include <core/interaction.h>
 #include "rvpl.h"
 
 void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
@@ -89,13 +90,13 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     if (showVLights && depth == 0) {
         Float d = Infinity;
         for (uint32_t s = 0; s < nLightSets; s++)
-            for (uint32_t i = 0; i < VLTransforms[lSet].size(); i++) {
+            for (uint32_t i = 0; i < VLTransforms[s].size(); i++) {
                 Float tHit = Infinity;
-                Sphere sphere = Sphere(&VLTransforms[lSet][i], &VLITransforms[lSet][i], false, .1f, -1, 1, 360);
+                Sphere sphere = Sphere(&VLTransforms[s][i], &VLITransforms[s][i], false, .05f, -1, 1, 360);
                 sphere.Intersect(ray, &tHit, &isect, false);
                 if (tHit < d) {
                     d = tHit;
-                    L = virtualLights[lSet][i].pathContrib / nLightPaths;
+                    L = virtualLights[s][i].pathContrib / nLightPaths;
                 }
             }
         if (d < Infinity) return L;
@@ -128,8 +129,7 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     const Normal3f &n = isect.n;
 
     // Compute indirect illumination with virtual lights
-    for (uint32_t i = 0; i < virtualLights[lSet].size(); i++) {
-        const VirtualLight &vl = virtualLights[lSet][i];
+    for (const VirtualLight &vl : virtualLights[lSet]) {
         // Compute virtual light's tentative contribution _Llight_
         Float d2 = DistanceSquared(p, vl.p);
         Vector3f wi = Normalize(vl.p - p);
