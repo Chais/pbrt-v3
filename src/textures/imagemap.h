@@ -79,6 +79,7 @@ class ImageTexture : public Texture<Treturn> {
     ImageTexture(std::unique_ptr<TextureMapping2D> m,
                  const std::string &filename, bool doTri, Float maxAniso,
                  ImageWrap wm, Float scale, bool gamma);
+    ImageTexture(std::unique_ptr<TextureMapping2D> m, MIPMap<Tmemory> *mm) : mapping(std::move(m)), mipmap(mm) {}
     static void ClearCache() {
         textures.erase(textures.begin(), textures.end());
     }

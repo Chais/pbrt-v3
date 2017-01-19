@@ -2,12 +2,12 @@
 // Created by Philip Abernethy (1206672) on 05/11/16.
 //
 
-#include <core/interaction.h>
 #include "rvpl.h"
 
 void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
     if (scene.lights.size() == 0) return;
     MemoryArena arena;
+    sampler.StartPixel(Point2i());
     RNG rng(13);
     vlSetOffset = uint32_t(std::round(rng.UniformFloat() * nLightSets)) % nLightSets;
 
@@ -37,16 +37,30 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
                 // Create virtual light at ray intersection point
                 Vector3f wo = isect.wo;
                 isect.ComputeScatteringFunctions(ray, arena);
-                Point2f bsdfSample = sampler.Get2D();
-                Spectrum contrib = alpha * isect.bsdf->rho(wo, 1, &bsdfSample) * InvPi; // $f(p, \omega_o, \omega_i)
-                virtualLights[s].push_back(
-                        VirtualLight(OffsetRayOrigin(isect.p, isect.pError, isect.n, isect.wo), isect.n, contrib));
-                if (showVLights) {
-                    VLTransforms[s].push_back(Translate((Vector3f) virtualLights[s].back().p));
-                    VLITransforms[s].push_back(
-                            Transform(VLTransforms[s].back().GetInverseMatrix(), VLTransforms[s].back().GetMatrix()));
+                std::shared_ptr<VirtualLight> vl(
+                        new VirtualLight(OffsetRayOrigin(isect.p, isect.pError, isect.n, isect.wo), isect.n));
+                // Orient sphere correctly
+                Vector3f axis = Cross(Vector3f(0, 0, 1), Vector3f(isect.n));
+                if (axis == Vector3f()) axis = Vector3f(1, 0, 0);
+                vl->trans = std::make_shared<Transform>(Translate(Vector3f(vl->p)) * Rotate(Degrees(
+                        std::acos(Dot(Vector3f(0, 0, 1), Vector3f(isect.n)))), axis));
+                vl->itrans = std::make_shared<Transform>(Inverse(*vl->trans));
+                // Sample outgoing light for every texel
+                Spectrum data[vlResolution.x * vlResolution.y];
+                int32_t yres = vlResolution.y / 2;
+                for (uint32_t theta = 0; theta < yres; theta++) {
+                    Point2f sDir(theta * vlTexelStep.y + vlTexelOffset.y, vlTexelOffset.x);
+                    for (uint32_t phi = 0; phi < vlResolution.x; phi++, sDir.y += vlTexelStep.x) {
+                        Vector3f wi = (*vl->trans)(UniformSampleHemisphere(sDir));
+                        data[(yres + theta) * vlResolution.x + phi] = alpha * isect.bsdf->f(wo, wi); // $f(p, \omega_o, \omega_i)
+                    }
                 }
-
+                vl->mipmap.reset(new MIPMap<Spectrum>(vlResolution, data, true));
+                std::unique_ptr<TextureMapping2D> map;
+                map.reset(new UVMapping2D());
+                vl->pathContrib.reset(new ImageTexture<Spectrum, Spectrum>(std::move(map), vl->mipmap.get()));
+                vl->sphere.reset(new Sphere(vl->trans.get(), vl->itrans.get(), false, .2f, -1, 1, 360));
+                virtualLights[s].push_back(vl);
                 // Sample new ray direction and update weight for virtual light path
                 Vector3f wi;
                 Float pdf;
@@ -63,7 +77,7 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
             arena.Reset();
         }
     }
-    for (std::vector<VirtualLight> v : virtualLights)
+    for (std::vector<std::shared_ptr<VirtualLight>> v : virtualLights)
         nVirtualLights += v.size();
     if (strategy == LightStrategy::UniformSampleAll) {
         // Compute number of samples to use for each light
@@ -90,13 +104,12 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     if (showVLights && depth == 0) {
         Float d = Infinity;
         for (uint32_t s = 0; s < nLightSets; s++)
-            for (uint32_t i = 0; i < VLTransforms[s].size(); i++) {
+            for (uint32_t i = 0; i < virtualLights[s].size(); i++) {
                 Float tHit = Infinity;
-                Sphere sphere = Sphere(&VLTransforms[s][i], &VLITransforms[s][i], false, .05f, -1, 1, 360);
-                sphere.Intersect(ray, &tHit, &isect, false);
+                virtualLights[s][i]->sphere->Intersect(ray, &tHit, &isect, false);
                 if (tHit < d) {
                     d = tHit;
-                    L = virtualLights[s][i].pathContrib / nLightPaths;
+                    L = virtualLights[s][i]->pathContrib->Evaluate(isect) / nLightPaths;
                 }
             }
         if (d < Infinity) return L;
@@ -129,7 +142,8 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     const Normal3f &n = isect.n;
 
     // Compute indirect illumination with virtual lights
-    for (const VirtualLight &vl : virtualLights[lSet]) {
+    for (uint32_t i = 0; i < virtualLights[lSet].size(); i++) {
+        const VirtualLight &vl = *virtualLights[lSet][i];
         // Compute virtual light's tentative contribution _Llight_
         Float d2 = DistanceSquared(p, vl.p);
         Vector3f wi = Normalize(vl.p - p);
@@ -137,8 +151,12 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
         G = std::min(G, gLimit);
         Spectrum f = isect.bsdf->f(wo, wi);
         if (G == 0.f || f.IsBlack()) continue;
-        Spectrum Llight = f * G * vl.pathContrib / nLightPaths;
-        RayDifferential connectRay(p, wi, std::sqrt(d2), 0.f, ray.medium);
+        //Sphere sphere = Sphere(&VLTransforms[lSet][i], &VLITransforms[lSet][i], false, .05f, 0, 1, 360);
+        SurfaceInteraction lisect;
+        Float tHit;
+        vl.sphere->Intersect(Ray(vl.p, -wi), &tHit, &lisect, false);
+        Spectrum Llight = f * G * vl.pathContrib->Evaluate(lisect) / nLightPaths;
+        RayDifferential connectRay(p, wi, std::sqrt(d2), isect.time, ray.medium);
         if (connectRay.medium) Llight *= connectRay.medium->Tr(ray, sampler);
 
         // Possible skip virtual light shadow ray with Russian roulette
@@ -195,6 +213,7 @@ CreateRVPLIntegrator(const ParamSet &params, std::shared_ptr<Sampler> sampler, s
     int nGatherSamples = params.FindOneInt("gathersamples", 16);
     float rrThreshold = params.FindOneFloat("rrthreshold", .0001f);
     int maxDepth = params.FindOneInt("maxdepth", 5);
+    int vres = params.FindOneInt("vres", 4);
     LightStrategy strategy;
     std::string st = params.FindOneString("strategy", "all");
     if (st == "one")
@@ -208,5 +227,5 @@ CreateRVPLIntegrator(const ParamSet &params, std::shared_ptr<Sampler> sampler, s
     bool vl = params.FindOneBool("showvl", false);
     bool dl = params.FindOneBool("nodl", false);
     return new RichVPLIntegrator(camera, sampler, nLightPaths, nLightSets, gLimit, nGatherSamples, rrThreshold,
-                                 maxDepth, strategy, vl, dl);
+                                 maxDepth, vres, strategy, vl, dl);
 }
