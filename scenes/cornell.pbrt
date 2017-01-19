@@ -1,98 +1,100 @@
 Film "image" "string filename" "rvpl.png"
 	"integer xresolution" [512] "integer yresolution" [512]
 LookAt 0 0 5 0 0 4 0 1 0
-Scale -1 1 1
 Camera "perspective" "float fov" [90]
-Sampler "random" "integer pixelsamples" [128]
-Integrator "rvpl" "integer nsets" [128] "integer nlights" [256] "float glimit" [2] "bool nodl" "false" "bool showvl" "false"
+Sampler "random" "integer pixelsamples" [256]
+Integrator "rvpl" "integer nsets" [256] "integer nlights" [128] "float glimit" [2] "bool nodl" "false" "bool showvl" "false"
 
 WorldBegin
+    # Lamp
+    AttributeBegin
+        Translate 0 4.999 -5
+        Rotate 90 1 0 0
+        AreaLightSource "diffuse" "rgb L" [50 50 50]
+        Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+            "point P" [1 1 0  1 -1 0  -1 -1 0  -1 1 0]
+            "normal N" [0 0 1  0 0 1  0 0 1  0 0 1]
+    AttributeEnd
 
-# Lamp
-AttributeBegin
-Translate 0 4.999 -5
-Rotate 90 1 0 0
-AreaLightSource "diffuse" "rgb L" [50 50 50]
-Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-	"point P" [1 1 0  1 -1 0  -1 -1 0  -1 1 0]
-	"normal N" [0 0 1  0 0 1  0 0 1  0 0 1]
-AttributeEnd
+    # Back
+    AttributeBegin
+        Translate 0 0 -10
+        Scale 5.1 5.1 1
+        Material "matte" "color Kd" [.9 .9 .9]
+        Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+            "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+            "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+    AttributeEnd
 
-# Back
-AttributeBegin
-Translate 0 0 -10
-Rotate 180 1 0 0
-Scale 5.1 5.1 1
-Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
-	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
-Material "matte" "float Kd" [.9]
-AttributeEnd
+    # Bottom
+    AttributeBegin
+        Translate 0 -5 -5
+        Rotate -90 1 0 0
+        Scale 5.1 5.1 1
+        Material "matte" "color Kd" [.9 .9 .9]
+        Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+            "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+            "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+    AttributeEnd
 
-# Bottom
-AttributeBegin
-Translate 0 -5 -5
-Rotate -90 1 0 0
-Scale 5.1 5.1 1
-Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
-	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
-Material "matte" "float Kd" [.9]
-AttributeEnd
+    # Top
+    AttributeBegin
+        Translate 0 5 -5
+        Rotate 90 1 0 0
+        Scale 5.1 5.1 1
+        Material "matte" "color Kd" [.9 .9 .9]
+        Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+            "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+            "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+    AttributeEnd
 
-# Top
-AttributeBegin
-Translate 0 5 -5
-Rotate 90 1 0 0
-Scale 5.1 5.1 1
-Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
-	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
-Material "matte" "float Kd" [.9]
-AttributeEnd
+    # Front
+    #AttributeBegin
+        #Scale 5.1 5.1 1
+        #Rotate 180 1 0 0
+        #Material "matte" "float Kd" [.9]
+        #Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+        #   "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+        #   "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+    #AttributeEnd
 
-# Front
-#AttributeBegin
-#Scale 5.1 5.1 1
-#Rotate 180 1 0 0
-#Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-#	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
-#	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
-#Material "matte" "float Kd" [.9]
-#AttributeEnd
+    # Left
+    AttributeBegin
+        Translate 5 0 -5
+        Rotate -90 0 1 0
+        Scale 5.1 5.1 1
+        Material "matte" "color Kd" [.9 0 0]
+        Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+            "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+            "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+    AttributeEnd
 
-# Left
-AttributeBegin
-Translate -5 0 -5
-Rotate 90 0 1 0
-Scale 5.1 5.1 1
-Material "matte" "rgb Kd" [.9 0 0]
-Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
-	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
-AttributeEnd
+    # Right
+    AttributeBegin
+        Translate -5 0 -5
+        Rotate 90 0 1 0
+        Scale 5.1 5.1 1
+        Material "matte" "color Kd" [0 .9 0]
+        Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+            "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
+            "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
+    AttributeEnd
 
-# Right
-AttributeBegin
-Translate 5 0 -5
-Rotate -90 0 1 0
-Scale 5.1 5.1 1
-Material "matte" "rgb Kd" [0 .9 0]
-Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
-	"point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
-	"normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
-AttributeEnd
+    # Left sphere
+    AttributeBegin
+        Translate 2.5 -2.5 -6.0
+        Rotate -90 1 0 0
+        Material "metal" "float uroughness" [.1] "float vroughness" [.01]
+        #Material "matte" "color Kd" [.9 .9 .9]
+        Shape "sphere" "float radius" [2]
+    AttributeEnd
 
-AttributeBegin
-Translate -2.5 -2.5 -6.0
-Shape "sphere" "float radius" [2]
-Material "matte" "float Kd" [0.9]
-AttributeEnd
-
-AttributeBegin
-Translate 2.5 -2.5 -3.0
-Shape "sphere" "float radius" [2]
-Material "matte" "float Kd" [0.9]
-AttributeEnd
-
+    # Right sphere
+    AttributeBegin
+        Translate -2.5 -2.5 -3.0
+        Rotate -90 1 0 0
+        Material "metal" "float uroughness" [.01] "float vroughness" [.1]
+        #Material "matte" "color Kd" [.9 .9 .9]
+        Shape "sphere" "float radius" [2]
+    AttributeEnd
 WorldEnd
