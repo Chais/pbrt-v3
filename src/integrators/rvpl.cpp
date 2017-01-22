@@ -2,12 +2,11 @@
 // Created by Philip Abernethy (1206672) on 05/11/16.
 //
 
-#include <core/interaction.h>
 #include "rvpl.h"
 
 void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
     if (scene.lights.size() == 0) return;
-    MemoryArena arena;
+    sampler.StartPixel(Point2i());
     RNG rng(13);
     vlSetOffset = uint32_t(std::round(rng.UniformFloat() * nLightSets)) % nLightSets;
 
@@ -36,17 +35,9 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 
                 // Create virtual light at ray intersection point
                 Vector3f wo = isect.wo;
-                isect.ComputeScatteringFunctions(ray, arena);
-                Point2f bsdfSample = sampler.Get2D();
-                Spectrum contrib = alpha * isect.bsdf->rho(wo, 1, &bsdfSample) * InvPi; // $f(p, \omega_o, \omega_i)
-                virtualLights[s].push_back(
-                        VirtualLight(OffsetRayOrigin(isect.p, isect.pError, isect.n, isect.wo), isect.n, contrib));
-                if (showVLights) {
-                    VLTransforms[s].push_back(Translate((Vector3f) virtualLights[s].back().p));
-                    VLITransforms[s].push_back(
-                            Transform(VLTransforms[s].back().GetInverseMatrix(), VLTransforms[s].back().GetMatrix()));
-                }
-
+                isect.ComputeScatteringFunctions(ray, localArena);
+                VirtualLight vl = VirtualLight(OffsetRayOrigin(isect.p, isect.pError, isect.n, isect.wo), isect, alpha);
+                virtualLights[s].push_back(vl);
                 // Sample new ray direction and update weight for virtual light path
                 Vector3f wi;
                 Float pdf;
@@ -60,7 +51,6 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
                 alpha *= contribScale / rrProb;
                 ray = RayDifferential(isect.p, wi);
             }
-            arena.Reset();
         }
     }
     for (std::vector<VirtualLight> v : virtualLights)
@@ -89,14 +79,15 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     // Show virtual lights instead if configured
     if (showVLights && depth == 0) {
         Float d = Infinity;
-        for (uint32_t s = 0; s < nLightSets; s++)
-            for (uint32_t i = 0; i < VLTransforms[s].size(); i++) {
-                Float tHit = Infinity;
-                Sphere sphere = Sphere(&VLTransforms[s][i], &VLITransforms[s][i], false, .05f, -1, 1, 360);
-                sphere.Intersect(ray, &tHit, &isect, false);
-                if (tHit < d) {
+        for (std::vector<VirtualLight> v : virtualLights)
+            for (VirtualLight vl : v) {
+                Float tHit;
+                Transform t = Translate(Vector3f(vl.p));
+                Transform it = Inverse(t);
+                Sphere s(&t, &it, false, .2f, -1, 1, 360);
+                if (s.Intersect(ray, &tHit, &isect, false) && tHit < d) {
                     d = tHit;
-                    L = virtualLights[s][i].pathContrib / nLightPaths;
+                    L = vl.alpha * vl.contrib.bsdf->f(vl.contrib.wo, Normalize(isect.p - vl.p)) / nLightPaths;
                 }
             }
         if (d < Infinity) return L;
@@ -129,16 +120,16 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
     const Normal3f &n = isect.n;
 
     // Compute indirect illumination with virtual lights
-    for (const VirtualLight &vl : virtualLights[lSet]) {
+    for (VirtualLight vl : virtualLights[lSet]) {
         // Compute virtual light's tentative contribution _Llight_
         Float d2 = DistanceSquared(p, vl.p);
         Vector3f wi = Normalize(vl.p - p);
-        Float G = AbsDot(wi, n) * AbsDot(wi, vl.n) / d2;
+        Float G = AbsDot(wi, n) * AbsDot(wi, vl.contrib.n) / d2;
         G = std::min(G, gLimit);
         Spectrum f = isect.bsdf->f(wo, wi);
         if (G == 0.f || f.IsBlack()) continue;
-        Spectrum Llight = f * G * vl.pathContrib / nLightPaths;
-        RayDifferential connectRay(p, wi, std::sqrt(d2), 0.f, ray.medium);
+        Spectrum Llight = f * G * vl.alpha * vl.contrib.bsdf->f(vl.contrib.wo, -wi) / nLightPaths;
+        RayDifferential connectRay(p, wi, std::sqrt(d2), isect.time, ray.medium);
         if (connectRay.medium) Llight *= connectRay.medium->Tr(ray, sampler);
 
         // Possible skip virtual light shadow ray with Russian roulette

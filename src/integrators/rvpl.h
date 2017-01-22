@@ -14,37 +14,33 @@
 #include <core/stats.h>
 #include <core/sampling.h>
 #include <shapes/sphere.h>
+#include <core/interaction.h>
 #include "integrator.h"
 #include "paramset.h"
 #include "directlighting.h"
+
 STAT_COUNTER("Scene/VirtualLights created", nVirtualLights);
 
 struct VirtualLight {
     VirtualLight() {}
 
-    VirtualLight(const Point3f &pp, const Normal3f &nn, const Spectrum &c) : p(pp), n(nn), pathContrib(c) {}
+    VirtualLight(const Point3f &pp, const SurfaceInteraction &c, const Spectrum &a) : p(pp), contrib(c), alpha(a) {}
 
     Point3f p;
-    Normal3f n;
-    Spectrum pathContrib;
+    SurfaceInteraction contrib;
+    Spectrum alpha;
 };
 
 class RichVPLIntegrator : public SamplerIntegrator {
 public:
     RichVPLIntegrator(const std::shared_ptr<const Camera> &camera, const std::shared_ptr<Sampler> &sampler,
-                      uint32_t nl = 64, uint32_t ns = 4, const float gl = 10.f, const int ng = 16,
-                      const float rrt = .0001f, const int maxd = 5,
-                      const LightStrategy strat = LightStrategy::UniformSampleAll, const bool vl = false,
-                      const bool dl = false) : SamplerIntegrator(camera, sampler),
-                                               nLightPaths(RoundUpPow2(int32_t(nl))),
-                                               nLightSets(RoundUpPow2(int32_t(ns))), gLimit(gl), nGatherSamples(ng),
-                                               rrThreshold(rrt), maxDepth(maxd), strategy(strat), showVLights(vl),
-                                               noDirectLighting(dl) {
+                      const uint32_t &nl, const uint32_t &ns, const float &gl, const int &ng, const float &rrt,
+                      const int &maxd, const LightStrategy &strat, const bool &vl, const bool &dl)
+            : SamplerIntegrator(camera, sampler),
+              nLightPaths(RoundUpPow2(int32_t(nl))), nLightSets(RoundUpPow2(int32_t(ns))), gLimit(gl),
+              nGatherSamples(ng), rrThreshold(rrt), maxDepth(maxd), strategy(strat), showVLights(vl),
+              noDirectLighting(dl) {
         virtualLights.resize(ns);
-        if (vl) {
-            VLTransforms.resize(ns);
-            VLITransforms.resize(ns);
-        }
     }
 
     virtual void Preprocess(const Scene &scene, Sampler &s) override;
@@ -60,10 +56,9 @@ private:
     const int maxDepth;
     const LightStrategy strategy;
     const bool showVLights;
-    bool noDirectLighting;
+    const bool noDirectLighting;
+    MemoryArena localArena;
     std::vector<std::vector<VirtualLight>> virtualLights;
-    std::vector<std::vector<Transform>> VLTransforms;
-    std::vector<std::vector<Transform>> VLITransforms;
     uint32_t vlSetOffset;
     std::vector<int> nLightSamples;
 };
