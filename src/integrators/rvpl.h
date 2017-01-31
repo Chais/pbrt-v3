@@ -31,7 +31,6 @@ struct VirtualLight {
 
     Point3f p;
     Normal3f n;
-    // TODO: Store SurfaceInteraction and incoming light instead of texture?
     std::shared_ptr<ImageTexture<Spectrum, Spectrum>> pathContrib;
     std::shared_ptr<Sphere> sphere;
     std::unique_ptr<MIPMap<Spectrum>> mipmap;
@@ -48,7 +47,7 @@ public:
               nLightPaths(RoundUpPow2(int32_t(nl))), nLightSets(RoundUpPow2(int32_t(ns))), gLimit(gl),
               nGatherSamples(ng), rrThreshold(rrt), maxDepth(maxd), strategy(strat), showVLights(vl),
               noDirectLighting(dl), vlResolution(4 * RoundUpPow2(int32_t(vres)), 2 * RoundUpPow2(int32_t(vres))) {
-        vlTexelStep = Point2f(2.f / vlResolution.x, 2.f / vlResolution.y);
+        vlTexelStep = Point2f(1.f / vlResolution.x, 2.f / vlResolution.y);
         vlTexelOffset = Point2f(vlTexelStep.x / 2, vlTexelStep.y / 2);
         virtualLights.resize(ns);
     }

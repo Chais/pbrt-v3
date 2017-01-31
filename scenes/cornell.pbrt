@@ -2,7 +2,7 @@ Film "image" "string filename" "rvpl.png"
 	"integer xresolution" [512] "integer yresolution" [512]
 LookAt 0 0 5 0 0 4 0 1 0
 Camera "perspective" "float fov" [90]
-Sampler "random" "integer pixelsamples" [256]
+Sampler "sobol" "integer pixelsamples" [256]
 Integrator "rvpl" "integer nsets" [256] "integer nlights" [128] "float glimit" [2] "bool nodl" "false" "bool showvl" "false"
 
 WorldBegin
