@@ -1,9 +1,9 @@
-Film "image" "string filename" "rvpl.png"
+Film "image" "string filename" "bdpt.png"
 	"integer xresolution" [512] "integer yresolution" [512]
 LookAt 0 0 5 0 0 4 0 1 0
 Camera "perspective" "float fov" [90]
-Sampler "random" "integer pixelsamples" [128]
-Integrator "rvpl" "integer nsets" [128] "integer nlights" [128] "float glimit" [2] "bool nodl" "false" "bool showvl" "false"
+Sampler "halton" "integer pixelsamples" [8192]
+Integrator "bdpt" "integer nsets" [512] "integer nlights" [128] "float glimit" [2] "bool nodl" "false" "bool showvl" "false"
 
 WorldBegin
     # Lamp
@@ -52,7 +52,7 @@ WorldBegin
     #AttributeBegin
         #Scale 5.1 5.1 1
         #Rotate 180 1 0 0
-        #Material "matte" "float Kd" [.9]
+        #Material "matte" "color Kd" [.9 .9 .9] "float sigma" [10]
         #Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
         #   "point P" [1 1 0 1 -1 0 -1 -1 0 -1 1 0]
         #   "normal N" [0 0 1 0 0 1 0 0 1 0 0 1]
@@ -84,17 +84,27 @@ WorldBegin
     AttributeBegin
         Translate 2.5 -2.5 -6.0
         Rotate -90 1 0 0
-        Material "metal" "float uroughness" [.5] "float vroughness" [.01]
-        #Material "matte" "color Kd" [.9 .9 .9]
+        #Material "metal" "float uroughness" [.5] "float vroughness" [.01]
+        Material "matte" "color Kd" [.9 .9 .9]
+        #Material "mirror"
         Shape "sphere" "float radius" [2]
     AttributeEnd
+
+    # Right cylinder
+    #AttributeBegin
+    #    Translate -2.5 -2.5 -3
+    #    Rotate -90 1 0 0
+    #    Material "metal" "float roughness" [.0]
+    #    Shape "cylinder" "float radius" [2]
+    #AttributeEnd
 
     # Right sphere
     AttributeBegin
         Translate -2.5 -2.5 -3.0
         Rotate -90 1 0 0
-        Material "metal" "float uroughness" [.01] "float vroughness" [.5]
-        #Material "matte" "color Kd" [.9 .9 .9]
+        #Material "metal" "float uroughness" [.01] "float vroughness" [.5]
+        Material "matte" "color Kd" [.9 .9 .9]
+        #Material "glass"
         Shape "sphere" "float radius" [2]
     AttributeEnd
 WorldEnd

@@ -7,8 +7,7 @@
 void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
     if (scene.lights.size() == 0) return;
     sampler.StartPixel(Point2i());
-    RNG rng(13);
-    vlSetOffset = uint32_t(std::round(rng.UniformFloat() * nLightSets)) % nLightSets;
+    vlSetOffset = uint32_t(std::round(sampler.Get1D() * nLightSets)) % nLightSets;
 
     // Compute light sampling densities
     Distribution1D lightDistribution = *ComputeLightPowerDistribution(scene);
@@ -47,10 +46,11 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 
                 // Possibly terminate virtual light path with Russian roulette
                 Float rrProb = std::min(1.f, contribScale.y());
-                if (rng.UniformFloat() > rrProb) break;
+                if (sampler.Get1D() > rrProb) break;
                 alpha *= contribScale / rrProb;
                 ray = RayDifferential(isect.p, wi);
             }
+            sampler.StartNextSample();
         }
     }
     for (std::vector<VirtualLight> v : virtualLights)
@@ -71,6 +71,7 @@ void RichVPLIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, Sampler &sampler, MemoryArena &arena,
                                int depth) const {
     ProfilePhase pp(Prof::SamplerIntegratorLi);
+    RNG rng(uint64_t(ray.d.y * 1000));
     Spectrum L(0.f);
     if (scene.lights.size() == 0) return L;
     SurfaceInteraction isect;
@@ -135,14 +136,14 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
         // Possible skip virtual light shadow ray with Russian roulette
         if (Llight.y() < rrThreshold) {
             Float continueProbability = .1f;
-            if (sampler.Get1D() > continueProbability) continue;
+            if (rng.UniformFloat() > continueProbability) continue;
             Llight /= continueProbability;
         }
 
         // Add contribution from _VirtualLight_ _vl_
         if (!scene.IntersectP(connectRay)) L += Llight;
     }
-    if (depth < maxDepth) {
+    if (depth + 1 < maxDepth) {
         // Do bias compensation for bounding geometry term
         int nSamples = (depth == 0) ? nGatherSamples : 1;
         for (int i = 0; i < nSamples; i++) {
@@ -160,14 +161,12 @@ Spectrum RichVPLIntegrator::Li(const RayDifferential &ray, const Scene &scene, S
                 SurfaceInteraction gatherIsect;
                 scene.Intersect(gatherRay, &gatherIsect);
                 Float Ggather = AbsDot(wi, n) * AbsDot(-wi, gatherIsect.n) / DistanceSquared(p, gatherIsect.p);
-                if (Ggather - gLimit > 0.f && Ggather != Infinity) {
+                if (Ggather > gLimit && Ggather != Infinity) {
                     Float gs = (Ggather - gLimit) / Ggather;
                     L += f * Li * (AbsDot(wi, n) * gs / (nSamples * pdf));
                 }
             }
         }
-    }
-    if (depth + 1 < maxDepth) {
         // Trace rays for specular reflection and refraction
         L += SpecularReflect(ray, isect, scene, sampler, arena, depth);
         L += SpecularTransmit(ray, isect, scene, sampler, arena, depth);

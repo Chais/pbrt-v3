@@ -1,0 +1,42 @@
+# Main Scene File
+
+LookAt -0.623726 -7.587055 1.204726 -0.623726 -6.587055 1.204728 0.000000 -0.000002 1.000000
+
+# table view (teacups need smoothing, marble is lame)
+#LookAt 2 -2 4   1.25 0 2.5  0 0 1
+
+Camera "perspective"
+	"float fov" [49.134342077604479]
+
+Film "image"
+	"integer xresolution" [1024]
+	"integer yresolution" [1024]
+        "string filename" "breakfast.png"
+        "float scale" 6
+# imgtool convert -bloomscale .1 -bloomlevel 5 breakfast.{exr,png} 
+
+Sampler "halton" "integer pixelsamples" 5120
+Integrator "bdpt" "integer nsets" [1024] "integer nlights" [128] "float glimit" [10] "integer vres" 8 "bool showvl" "false"
+
+WorldBegin
+
+Include "materials.pbrt"
+
+Include "geometry.pbrt"
+
+# through blinds
+LightSource "distant" "point from" [9 -4 9 ] "blackbody L" [5000 10]
+
+# extra walls
+
+AttributeBegin
+NamedMaterial "Paint - White Matt"
+# right: x = -6.5 plane
+#Shape "trianglemesh" "integer indices" [0 1 2 0 2 3 ]
+#    "point P" [ -6.5 -10 -2   -6.5  10 -2   -6.5 10 7   -6.5 -10 7 ]
+# back: y = -9 plane
+Shape "trianglemesh" "integer indices" [0 1 2 0 2 3]
+    "point P" [ -10 -9 -2   10 -9 -2  10 -9 7  -10 -9 7 ]
+AttributeEnd
+
+WorldEnd
